@@ -70,6 +70,12 @@ class ZabbixInventory(object):
             self.zabbix_username = config.get('zabbix', 'username')
         if config.has_option('zabbix', 'password'):
             self.zabbix_password = config.get('zabbix', 'password')
+        if config.has_option('zabbix', 'preferred_ansible_host_type'):
+            self.preferred_ansible_host_type = config.get('zabbix', 'preferred_ansible_host_type')
+        else:
+            self.preferred_ansible_host_type = 'dns'
+            
+            
 
     def read_cli(self):
         parser = argparse.ArgumentParser()
@@ -88,6 +94,7 @@ class ZabbixInventory(object):
 
     def get_list(self, api):
         template_ids = None
+        group_ids = None 
         if os.getenv('ZABBIX_TEMPLATES'):
             template_ids = []
             templates = api.template.get({'output':'extend',
@@ -95,21 +102,33 @@ class ZabbixInventory(object):
                 'filter': {'host': os.getenv('ZABBIX_TEMPLATES').split(',')}})
             for template in templates:
                 template_ids.append(template['templateid'])
+            hostsData = api.host.get({'output': 'extend', 'selectGroups': 'extend', 'selectInterfaces': 'extend', 'templateids': template_ids})
 
-        hostsData = api.host.get({'output': 'extend', 'selectGroups': 'extend', 'selectInterfaces': 'extend',
-            'templateids': template_ids})
+        elif os.getenv('ZABBIX_GROUPS'):
+            group_ids = []
+            groups = api.hostgroup.get({'output':'extend', 'selectGroups':'extend', 'filter': {'name': os.getenv('ZABBIX_GROUPS').split(',')}})
+            for group in groups:
+                group_ids.append(group['groupid'])
+            hostsData = api.host.get({'output': 'extend', 'selectGroups': 'extend', 'selectInterfaces': 'extend', 'groupids': group_ids})
+            
+        else:
+            hostsData = api.host.get({'output': 'extend', 'selectGroups': 'extend', 'selectInterfaces': 'extend'})
 
         data = {}
         data[self.defaultgroup] = self.hoststub()
         for host in hostsData:
             for interface in host['interfaces']:
                 if interface['type'] == '1':
-                    if interface['dns'] != '':
-                        hostname = interface['dns']
-                    else:
+                    if self.preferred_ansible_host_type == 'dns':
+                        if interface['dns'] != '' :
+                            hostname = interface['dns']
+                        elif interface['ip'] != '' :
+                            hostname = interface['ip']
+                    else: 
                         hostname = interface['ip']
                 break
             data[self.defaultgroup]['hosts'].append(hostname)
+            
 
             for group in host['groups']:
                 groupname = group['name']
