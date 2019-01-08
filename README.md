@@ -11,3 +11,7 @@ Example:
 ZABBIX_TEMPLATES='Template OS Linux,Template App Docker' ansible -i zabbix.py all -m ping
 ```
 This will only add hosts with Template OS Linux or Template App Docker templates to the inventory.
+```
+ZABBIX_GROUPS='Linux Servers,Test Servers' ansible -i zabbix.py all -m ping
+```
+This will only add hosts with Linux Servers Test Servers zabbix groups to the inventory.
