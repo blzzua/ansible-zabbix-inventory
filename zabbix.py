@@ -125,7 +125,8 @@ class ZabbixInventory(object):
                         elif interface['ip'] != '' :
                             hostname = interface['ip']
                     else: 
-                        hostname = interface['ip']
+                        if interface['ip'] != '' :
+                            hostname = interface['ip']
                 break
             data[self.defaultgroup]['hosts'].append(hostname)
             
